@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimal Portfolio</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Optimal Portfolio</h1>
+
+    <form id="portfolioForm">
+        <label>Enter Ticker Symbols (comma-separated):</label>
+        <input type="text" id="tickers" name="tickers" required placeholder="AAPL, MSFT, GOOGL">
+        
+        <label>Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required>
+
+        <label>End Date:</label>
+        <input type="date" id="end_date" name="end_date" required>
+        <div class="buttons">
+            <input type="submit" value="Generate Chart">
+        <div>
+    </form>
+
+    <h2>Portfolio Allocation</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Asset</th>
+                <th>Optimal Allocation</th>
+                <th>Expected Return</th>
+                <th>Risk</th>
+            </tr>
+        </thead>
+        <tbody id="portfolioBody"></tbody>
+    </table>
+
+    <h2>Portfolio Performance</h2>
+    <canvas id="performanceChart"></canvas>
+
+    <script>
+        document.getElementById('portfolioForm').addEventListener('submit', function(event) {
+            event.preventDefault(); 
+        
+            const formData = new FormData(this);
+        
+            fetch('/plot', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("✅ Received data from Flask:", data);  
+                updatePortfolio(data);
+            })
+            .catch(error => console.error("❌ Error:", error));
+        });
+        
+        function updatePortfolio(data) {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+        
+            console.log("Updating Portfolio:", data);  
+        
+            const tbody = document.getElementById('portfolioBody');
+            tbody.innerHTML = '';
+        
+            data.tickers.forEach((ticker, index) => {
+                const row = `<tr>
+                    <td>${ticker}</td>
+                    <td>${(data.allocations[index] * 100).toFixed(2)}%</td>
+                    <td>${(data.expected_returns[index] * 100).toFixed(2)}%</td>  <!-- Fixed Expected Return -->
+                    <td>${(data.risk * 100).toFixed(2)}%</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        
+            
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+        
+            if (window.performanceChart && window.performanceChart instanceof Chart) {
+                window.performanceChart.destroy();
+            }
+        
+            window.performanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.tickers,
+                    datasets: [{
+                        label: 'Optimal Allocation (%)',
+                        data: data.allocations.map(a => a * 100),
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
